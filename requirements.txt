@@ -1,0 +1,1 @@
+flask pymongo dnspython bcrypt flask-wtf
