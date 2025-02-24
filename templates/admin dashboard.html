@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - SLPP</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background: url("{{ url_for('static', filename='images/shangri la admin.jpg') }}") no-repeat center center fixed;
+            background-size: cover;
+            color: #ffffff;
+            font-family: 'Arial', sans-serif;
+        }
+
+        .container {
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 50px;
+        }
+
+        h1, h2 {
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .btn {
+            margin: 5px 0;
+        }
+
+        table {
+            background-color: rgba(255, 255, 255, 0.9);
+            color: #000;
+        }
+
+        table th, table td {
+            text-align: center;
+        }
+
+        .chart-container {
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 15px;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome Petitions Commitee Officer</h1>
+
+        <div class="mb-4">
+            <h2>Current Signature Threshold</h2>
+            <p id="current-threshold">Fetching current threshold...</p>
+            <form id="threshold-form" action="/set-signature-threshold" method="post" class="d-flex">
+                <input type="text" name="threshold" class="form-control me-2" placeholder="Enter new threshold" required>
+                <button type="submit" class="btn btn-primary">Update Threshold</button>
+            </form>
+        </div>
+
+        <div class="mb-4 chart-container">
+            <h2>Petition Statistics</h2>
+            <div style="width: 60%; margin: 0 auto;"> <!-- Adjust the width as needed -->
+                <canvas id="petitionChart" width="400" height="200"></canvas>
+            </div>
+            <script>
+                fetch('/admin/petition-stats')
+                    .then(response => response.json())
+                    .then(data => {
+                        const ctx = document.getElementById('petitionChart').getContext('2d');
+                        new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: data.labels,
+                                datasets: [{
+                                    label: 'Number of Petitions',
+                                    data: data.values,
+                                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                    borderColor: 'rgba(75, 192, 192, 1)',
+                                    borderWidth: 1
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: true,
+                                scales: {
+                                    y: {
+                                        beginAtZero: true
+                                    }
+                                }
+                            }
+                        });
+                    })
+                    .catch(error => console.error("Error fetching petition stats:", error));
+            </script>
+        </div>
+        
+        <div class="mb-4">
+            
+    <h2>Manage Petitions</h2> 
+    {% if petitions and petitions|length > 0 %}
+        <table class="table table-striped table-bordered">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Description</th>
+                    <th>Signatures</th>
+                    <th>Status</th>
+                    <th>Response</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for petition in petitions %}
+                    <tr>
+                        <td>{{ petition.title }}</td>
+                        <td>{{ petition.description }}</td>
+                        <td>{{ petition.signature_count }}</td>
+                        <td>{{ petition.status }}</td>
+                        <td>{{ petition.response or 'No response yet.' }}</td>
+                        <td>
+                            {% if petition.status == 'open' %}
+                                <button onclick="closePetition('{{ petition._id }}')" class="btn btn-danger btn-sm">Close</button>
+                            {% endif %}
+                            <button onclick="respondPetition('{{ petition._id }}')" class="btn btn-primary btn-sm">Respond</button>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No petitions found.</p>
+    {% endif %}
+</div>
+
+<nav>
+    <form method="POST" action="{{ url_for('logout') }}" style="display:inline;">
+        <button type="submit" class="btn btn-danger">Logout</button>
+    </form>
+</nav>
+
+        <script> 
+
+document.addEventListener("DOMContentLoaded", function() {
+    fetch('/get-threshold')
+        .then(response => {
+            if (!response.ok) {
+                console.error("Failed to fetch threshold:", response.statusText);
+                return;
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.threshold) {
+                document.getElementById('threshold-display').value = data.threshold;
+            } else {
+                document.getElementById('threshold-display').value = "Not set";
+            }
+        })
+        .catch(error => {
+            console.error("Error fetching threshold:", error);
+        });
+});
+
+
+            // Close petition
+            function closePetition(id) {
+                fetch(`/admin/close-petition/${id}`, { method: 'POST' })
+                    .then(response => response.json())
+                    .then(() => location.reload());
+            }
+
+            // Respond to the petition
+            function respondPetition(id) {
+                const response = prompt('Enter your response:');
+                if (response) {
+                    fetch(`/admin/respond-petition/${id}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ response })
+                    }).then(() => location.reload());
+                }
+            }
+        </script>
+    </div>
+   
+</body>
+</html>
